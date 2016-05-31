@@ -1,0 +1,95 @@
+################################################################################
+#
+# CMake file for building the hardware and generating the bsp
+#
+# Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the copyright holders nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+################################################################################
+
+##################################################################################
+# Handle Includes
+INCLUDE(genbsp)
+INCLUDE(genbitstream)
+INCLUDE(installbsp)
+INCLUDE(installbitstream)
+
+REDUCE_BOARD_NAME(${CFG_DEMO_BOARD_NAME} "-" FRAG_DEMO_BOARD_NAME)
+
+STRING(TOLOWER ${FRAG_DEMO_BOARD_NAME} FRAG_DEMO_BOARD_NAME)
+
+SET(DEMO_NAME "${FRAG_DEMO_BOARD_NAME}-${CFG_DEMO_NAME}")
+
+# Use folder name for project name
+PROJECT(${DEMO_NAME} NONE)
+
+MESSAGE(STATUS "Generating targets for demo ${DEMO_NAME}!")
+
+##################################################################################
+# Set paths
+SET(BINS_INST_DIR ${CFG_DEMO_BOARD_NAME}/${CFG_DEMO_NAME})
+SET(BSP_TARGET_DIR ${BINS_INST_DIR})
+SET(HW_PLATFORM_TARGET_DIR ${BINS_INST_DIR}/hw_platform)
+
+##################################################################################
+# Add custom target for generating the bitstream
+GENERATE_BITS(${DEMO_NAME} ${PROJECT_SOURCE_DIR} ${SKIP_BITSTREAM})
+
+##################################################################################
+# Add custom target for generating the board support package
+FOREACH(PROC_INST_NAME PCP HOST)
+    IF(DEFINED CFG_${PROC_INST_NAME}_PROCESSOR)
+        IF(${CFG_${PROC_INST_NAME}_PROCESSOR} STREQUAL ${CMAKE_SYSTEM_PROCESSOR})
+            # Add targets for processor bsp
+            SET(BSP_DEMO_NAME_${PROC_INST_NAME} "${DEMO_NAME}-${CFG_${PROC_INST_NAME}_NAME}")
+            SET(BSP_GENERATE_DIR ${PROJECT_BINARY_DIR}/bsp${CFG_${PROC_INST_NAME}_NAME})
+
+            GENERATE_BSP(
+                ${BSP_DEMO_NAME_${PROC_INST_NAME}}
+                ${PROJECT_SOURCE_DIR}
+                ${BSP_GENERATE_DIR}
+                ${CFG_${PROC_INST_NAME}_NAME}
+                ${CFG_${PROC_INST_NAME}_TCIMEM_NAME}
+                ${IPCORE_REPOSITORY}
+            )
+
+            # Install the board support package for processor PCP
+            INSTALL_BSP(${BSP_GENERATE_DIR} ${BSP_TARGET_DIR} ${CFG_${PROC_INST_NAME}_NAME})
+        ENDIF()
+    ENDIF()
+ENDFOREACH()
+
+################################################################################
+# Installation rules for the bistream
+INSTALL_BITSTREAM(${PROJECT_SOURCE_DIR} ${HW_PLATFORM_TARGET_DIR} ${SKIP_BITSTREAM})
+
+INSTALL(FILES ${PROJECT_SOURCE_DIR}/cmake/settings.cmake DESTINATION ${BINS_INST_DIR})
+
+################################################################################
+# Installation rules for board specific includes
+INSTALL(DIRECTORY ${PROJECT_SOURCE_DIR}/include DESTINATION ${BINS_INST_DIR})
+
+################################################################################
+# Add clean files
+SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ADD_CLEAN_FILES}")

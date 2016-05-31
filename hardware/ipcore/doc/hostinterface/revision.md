@@ -1,0 +1,49 @@
+Revision {#revision}
+========
+
+- [TASK] Clean up axi host interface ipcore
+- [TASK] Clean up axi ipcores
+- [TASK] Update license header
+- [TASK] Cleanup AXI ipcore code
+- [FEATURE] Enable AXI master supporting higher clock frequency
+- [FIX] Remove nodeid and led GPIOs of host interface
+- [TASK] Revise host interface documentation
+- [FEATURE] Enable configurable address width of host interface ipcore
+- [TASK] Remove parallel interface from host interface ipcore
+- [FEATURE] Add axi host interface toplevel
+- [FIX] Remove TODO for sensitivity list
+- [FIX] Fix wrong oHostWaitrequest generation for invalid Address
+- [FIX] Fix address based read operation on status and Control register
+- [TASK] Merge Tpdo and Rpdo memory buffer in Altera host interface
+- [TASK] Merge Tpdo and Rpdo memory buffer in host interface
+- [FIX] Avoid possible conflicts with dpram entity name
+- [FEATURE] Create libraries for common vhdl sources
+- [TASK] Move DPRAM components in memory subdirectory
+- [TASK] Set ipcore versions to 1.0.0
+- [FIX] Set correct path for testbenches using bus master
+- [TASK] Revise simulation handling
+- [TASK] Add revision to host interface documentation
+- [TASK] Relocate host interface documentation
+- [FIX] Fix max and min function of global.vhd
+- [FIX] Add register to edge detector to cut combinational path
+- [FIX] Fix single port RAM model
+- [FIX] Add enable port to DPRAM library components
+- [TASK] Cleanup of Altera host interface toplevel
+- [TASK] Rework host interface bridge instance
+- [TASK] Exchange revised component library in host interface
+- [TASK] Cleanup of hostinterface vhdl sources
+- [TASK] Revise magic bridge for resource optimization and testbench
+- [FIX] Adapt stimuli files for revised bus master
+- [TASK] Add Modelsim simulation do-script for host interface
+- [TASK] Add Modelsim simulation do-script for parallel host interface
+- [TASK] Source file cleanup
+- [FIX] HOSTIF: Dynamic buffer address write works with 16 bit host interface
+- [FEATURE] HOSTIF: Add asynchronous (de-)multiplexed parallel interface
+- [FIX] HOSTIF: Output of interrupt generator is registered
+- [TASK] HOSTIF: Cleanup source code according to coding styles
+- [FEATURE] HOSTIF: Add heart beat register
+- [FIX] HOSTIF: combined external and internal sync assignments
+- [FIX] change sync source irq generation
+- [TASK] remove gpio and add separate irq source enable
+- [FIX] irq master enable assignment from host side
+- [TASK] repo cleanup
