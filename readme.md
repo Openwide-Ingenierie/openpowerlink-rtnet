@@ -81,6 +81,9 @@ openPOWERLINK/V2.1.2/openPOWERLINK-V2.1.2.tar.gz)
 
 ## Contributors
 
+(c) Open Wide Ingénierie,
+    <http://openwide.fr>
+
 (c) SYSTEC electronic GmbH,
     Am Windrad 2,
     D-08468 Heinsdorfergrund,
