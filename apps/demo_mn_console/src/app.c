@@ -262,6 +262,7 @@ static tOplkError initProcessImage(void)
     printf("Size of input process image: %ld\n", sizeof(PI_IN));
     printf("Size of output process image: %ld\n", sizeof(PI_OUT));
     ret = oplk_allocProcessImage(sizeof(PI_IN), sizeof(PI_OUT));
+    // printf("ERROR: %s", debugstr_getRetValStr(ret));
     if (ret != kErrorOk)
     {
         return ret;
@@ -271,6 +272,7 @@ static tOplkError initProcessImage(void)
     pProcessImageOut_l = (PI_OUT*)oplk_getProcessImageOut();
 
     ret = oplk_setupProcessImage();
+    // printf("ERROR: %s", debugstr_getRetValStr(ret));
 
     return ret;
 }

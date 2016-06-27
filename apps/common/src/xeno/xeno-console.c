@@ -53,7 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
-#define MAX_RT_DEVICES 8 
+#define MAX_RT_DEVICES 8
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
@@ -151,11 +151,13 @@ int selectDevice(char* pDevName_p)
     }
 
     printf("--------------------------------------------------\n");
-    printf("Select the interface to be used for POWERLINK (0-%d):", (devices - 1));
+    /*printf("Select the interface to be used for POWERLINK (0-%d):", (devices - 1));
     if (scanf("%d", &inum) == EOF)
     {
         return -1;
-    }
+    }*/
+
+    inum = 0; // Force to select device 0, which should be rteth0
 
     printf("--------------------------------------------------\n");
     if ((inum < 0) || (inum > devices -1))

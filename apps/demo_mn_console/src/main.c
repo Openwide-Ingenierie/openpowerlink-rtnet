@@ -11,6 +11,7 @@ application.
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------
+Copyright (c) 2016, Open Wide Ingenierie
 Copyright (c) 2014, Bernecker+Rainer Industrie-Elektronik Ges.m.b.H. (B&R)
 Copyright (c) 2013, SYSTEC electronic GmbH
 Copyright (c) 2013, Kalycito Infotech Private Ltd.All rights reserved.
@@ -63,6 +64,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "app.h"
 #include "event.h"
 
+#include <signal.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <rtdm/ipc.h>
+
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -75,6 +82,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define IP_ADDR           0xc0a86401          // 192.168.100.1
 #define SUBNET_MASK       0xFFFFFF00          // 255.255.255.0
 #define DEFAULT_GATEWAY   0xC0A864FE          // 192.168.100.C_ADR_RT1_DEF_NODE_ID
+#define XDDP_PORT 0     /* [0..CONFIG-XENO_OPT_PIPE_NRDEV - 1] */
 
 //------------------------------------------------------------------------------
 // module global vars
@@ -106,6 +114,7 @@ typedef struct
 //------------------------------------------------------------------------------
 // local vars
 //------------------------------------------------------------------------------
+static int sock;
 
 //------------------------------------------------------------------------------
 // local function prototypes
@@ -115,10 +124,55 @@ static tOplkError initPowerlink(UINT32 cycleLen_p, char* pszCdcFileName_p,
                                 const BYTE* macAddr_p);
 static void loopMain(void);
 static void shutdownPowerlink(void);
+static void fail(const char *reason);
+static void open_socket(void);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
+static void fail(const char *reason)
+{
+        perror(reason);
+        exit(EXIT_FAILURE);
+}
+
+static void open_socket()
+{
+    struct sockaddr_ipc saddr;
+    int ret;
+    size_t poolsz;
+
+    /*
+     * Get a datagram socket to bind to the RT endpoint. Each
+     * endpoint is represented by a port number within the XDDP
+     * protocol namespace.
+     */
+    sock = socket(AF_RTIPC, SOCK_DGRAM, IPCPROTO_XDDP);
+    if (sock < 0)
+        fail("socket");
+    /*
+     * Set a local 16k pool for the RT endpoint. Memory needed to
+     * convey datagrams will be pulled from this pool, instead of
+     * Xenomai's system pool.
+     */
+    poolsz = 16384; /* bytes */
+    ret = setsockopt(sock, SOL_XDDP, XDDP_POOLSZ,
+                     &poolsz, sizeof(poolsz));
+    if (ret)
+        fail("setsockopt");
+    /*
+     * Bind the socket to the port, to setup a proxy to channel
+     * traffic to/from the Linux domain.
+     *
+     * saddr.sipc_port specifies the port number to use.
+     */
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.sipc_family = AF_RTIPC;
+    saddr.sipc_port = XDDP_PORT;
+    ret = bind(sock, (struct sockaddr *)&saddr, sizeof(saddr));
+    if (ret)
+        fail("bind");
+}
 
 //------------------------------------------------------------------------------
 /**
@@ -137,7 +191,8 @@ This is the main function of the openPOWERLINK console MN demo application.
 int main(int argc, char** argv)
 {
     tOplkError                  ret = kErrorOk;
-    tOptions                    opts;
+    tOptions opts;
+    char buf[128];
 
     getOptions(argc, argv, &opts);
 
@@ -158,18 +213,38 @@ int main(int argc, char** argv)
     printf("using openPOWERLINK Stack: %s\n", PLK_DEFINED_STRING_VERSION);
     printf("----------------------------------------------------\n");
 
-    if ((ret = initPowerlink(CYCLE_LEN, opts.cdcFile, aMacAddr_g)) != kErrorOk)
-        goto Exit;
+    /* Open XDDP socket */
+    open_socket();
 
-    if ((ret = initApp()) != kErrorOk)
-        goto Exit;
+    while (1) {
+        /* Wait for start message */
+        printf("Waiting for start command!\n");
+        do {
+            recvfrom(sock, buf, sizeof(buf), 0, NULL, 0);
+        } while (strncmp(buf, "start", 5) != 0);
 
-    loopMain();
+        if ((ret = initPowerlink(CYCLE_LEN, opts.cdcFile, aMacAddr_g)) != kErrorOk)
+            goto Exit;
+
+        if ((ret = initApp()) != kErrorOk)
+            goto Exit;
+
+        loopMain();
+        printf("loopMain() stopped!\n");
+
+        // If we are here, then we received a 'stop' message
+        shutdownApp();
+        printf("shutdownApp!\n");
+        shutdownPowerlink();
+        printf("shutdownPowerlink!\n");
+    }
 
 Exit:
-    shutdownPowerlink();
+    // printf("ERROR: %s", debugstr_getRetValStr(ret));
     shutdownApp();
+    shutdownPowerlink();
     system_exit();
+    close(sock);
 
     return 0;
 }
@@ -288,8 +363,10 @@ This function implements the main loop of the demo application.
 static void loopMain(void)
 {
     tOplkError              ret = kErrorOk;
-    char                    cKey = 0;
+    // char                    cKey = 0;
     BOOL                    fExit = FALSE;
+    int rc;
+    char buf[128];
 
 #if !defined(CONFIG_KERNELSTACK_DIRECTLINK)
 
@@ -313,7 +390,7 @@ static void loopMain(void)
 
     while (!fExit)
     {
-        if (console_kbhit())
+        /*if (console_kbhit())
         {
             cKey = (char)console_getch();
             switch (cKey)
@@ -341,7 +418,7 @@ static void loopMain(void)
                 default:
                     break;
             }
-        }
+        }*/
 
         if (system_getTermSignalState() == TRUE)
         {
@@ -353,6 +430,21 @@ static void loopMain(void)
         {
             fExit = TRUE;
             fprintf(stderr, "Kernel stack has gone! Exiting...\n");
+        }
+
+        rc = recvfrom(sock, buf, sizeof(buf), 0, NULL, 0);
+        printf("received %d bytes: %s\n", rc, buf);
+
+        if (rc > 0 && strncmp(buf, "stop", 4) == 0) {
+            printf("stop\n");
+            fExit = TRUE;
+        }
+        else if (rc > 0 && strncmp(buf, "reset", 5) == 0) {
+            ret = oplk_execNmtCommand(kNmtEventSwReset);
+            if (ret != kErrorOk)
+            {
+                fExit = TRUE;
+            }
         }
 
 #if defined(CONFIG_USE_SYNCTHREAD) || defined(CONFIG_KERNELSTACK_DIRECTLINK)
